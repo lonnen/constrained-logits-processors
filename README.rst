@@ -7,7 +7,8 @@ has a number of logits processors useful for nudging the probability of certain
 tokens appearing in text generation models.
 
 This module implements logits processors that constrain logits with an allow
-list and a disallow list.
+list and a disallow list, implemented as suggested in the `tensorflow blog <https://blog.tensorflow.org/2022/11/how-hugging-face-improved-text-generation-performance-with-xla.html>`_
+by using large negative values to mask out tokens that should appear.
 
 |Build Status|
 
