@@ -17,7 +17,7 @@ by using large negative values to mask out tokens that should appear.
 
 :Code:          https://github.com/lonnen/constrained-logits-processors
 :Issues:        https://github.com/lonnen/constrained-logits-processors/issues
-:Releases:      https://pypi.org/project/oops_all_itertools/#history
+:Releases:      https://pypi.org/project/constrained-logits-processors/#history
 :License:       MIT; See LICENSE
 
 Install
