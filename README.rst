@@ -6,9 +6,10 @@ HuggingFace's `transformers library <https://github.com/huggingface/transformers
 has a number of logits processors useful for nudging the probability of certain
 tokens appearing in text generation models.
 
-This module implements logits processors that constrain logits with an allow
-list and a disallow list, implemented as suggested in the `tensorflow blog <https://blog.tensorflow.org/2022/11/how-hugging-face-improved-text-generation-performance-with-xla.html>`_
-by using large negative values to mask out tokens that should appear.
+This module implements a logits processor that constrains logits for text generation
+using a letter bank, similar to scrabble, by masking out tokens that cannot be spelled
+with the remaining letters to `-math.Inf`. It doesn't work well and maybe it would be 
+better implemented as a `Constraint <https://github.com/huggingface/transformers/blob/main/src/transformers/generation/beam_constraints.py#L5>`.
 
 |Build Status|
 
@@ -27,7 +28,7 @@ To get started, install the library with `pip <https://pip.pypa.io/en/stable/>`_
 
 .. code-block:: shell
 
-    $ pip install constrained-logits-processors
+    $ pip install git+https://github.com/lonnen/constrained-logits-processors.git
 
 
 Usage
@@ -35,6 +36,6 @@ Usage
 
 .. code-block:: python
 
-    >>> from constrained_logits_processors import allowListLogitsProcessor, disallowListLogitsProcessor
+    >>> from constrained_logits_processors import LetterBankLogitsProcessor
 
     >>> # pass
