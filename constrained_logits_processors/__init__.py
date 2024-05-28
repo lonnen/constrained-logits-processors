@@ -1,32 +1,64 @@
 __version__ = "0.0.1"
 
-from huggingface.transformers import LogitsProcessor
+import math
+from collections import Counter
+
 import torch
+from transformers import AutoTokenizer, LogitsProcessor
 
-class ConstrainedLogitsProcessor(LogitsProcessor):
+class LetterBankLogitsProcessor(LogitsProcessor):
     """
+    [`LetterBankLogitsProcessor`] attempts to restrict sampling to ensure output can be
+    assembled out of letters in the bank. This can be quite expensive. Logits work over
+    tokens, but this Processor needs to decode those in order to work in characters.
+
+    This version of the processor also ignores empty spaces.
+
+    Once the letter bank gets small this processor starts to exhibit unexpected behavior
+    and doesn't work particularly well. Once most of the possible next tokens are
+    illegal and set to `-Math.Inf` increasingly unlikely choices appear, like repeated
+    empty whitespace, until generation breaks and begins to generate illegal choices.
+
+    Args:
+        letter_bank (`String`) - the letters that will be used as the bank of letters.
+        Whitespace will be ignored
+        tokenizer (`AutoTokenizer`) - the tokenizer being used to encode and decode
+        Tokens for the model
     """
 
-    def __init__(self, allowed_words_ids: List[List[int]], eos_token_id: int):
-        pass
+    def __init__(self, letter_bank: str, tokenizer: AutoTokenizer):
+        self.letter_bank = Counter(letter_bank)
+        self.decode = tokenizer.decode
+        self.eos_token_id = tokenizer.eos_token_id
+        self.bos_token_id = tokenizer.bos_token_id
 
-    def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor) -> torch.FloatTensor:
-        pass
+    def __call__(
+        self, input_ids: torch.LongTensor, scores: torch.FloatTensor
+    ) -> torch.FloatTensor:
+        tokens_to_ignore = set((self.eos_token_id, self.bos_token_id))
+        scores_processed = scores.clone()
+        for batch_scores, batch in zip(
+            scores_processed, input_ids.tolist(), strict=True
+        ):
+            # calculate letters used by current input_ids
+            candidate = self.decode(
+                [token for token in batch if token not in tokens_to_ignore],
+                clean_up_tokenization_spaces=True,
+            ).strip()
+            candidate_letters = Counter(candidate)
+            candidate_letters[" "] = 0  # remove empty spaces
 
-    def _tokens_match() -> bool:
-        pass
+            remaining_letters = self.letter_bank.copy()
+            remaining_letters.subtract(candidate_letters)
 
-    def _calc_allowed_words_ids(self, prev_input_ids: List[List[int]]) -> Iterable[int]:
-        allowed_tokens = []
-        for prev_input_ids_slice in prev_input_ids:
-            allowed_tokens_slice = []
-            for allowed_token_seq in self.allowed_words_id_length_greater_than_1:
-                if self._tokens_match(prev_input_ids_slice, allowed_token_seq[:-1]):
-                    allowed_tokens_slice.append(allowed_token_seq[-1])
+            # is the batch possible to produce with the letter bank?
+            if not candidate_letters < self.letter_bank:
+                batch_scores = torch.full_like(batch_scores, -math.inf)
+                continue
 
-            allowed_tokens.append(allowed_tokens_slice)
+            for score_id, _ in enumerate(batch_scores):
+                token_letters = Counter(self.decode(score_id).strip())
+                if not token_letters < remaining_letters:
+                    batch_scores[score_id] = -math.inf
 
-        return allowed_tokens
-
-    def _set_scores_to_neg_inf_unless_allowed(self, scores: torch.Tensor, allowed_tokens: List[List[int]]) -> torch.Tensor:
-        pass
+        return scores_processed
