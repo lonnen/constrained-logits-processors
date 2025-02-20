@@ -2,6 +2,10 @@
 Constrained Logits Processors
 =============================
 
+note: this project is abandoned. The approach never worked well -- once a significant
+proportion of tokens were restricted to `-math.Inf` generation would get eccentric
+and even choose tokens masked by `-math.Inf`
+
 HuggingFace's `transformers library <https://github.com/huggingface/transformers>`_
 has a number of logits processors useful for nudging the probability of certain
 tokens appearing in text generation models.
